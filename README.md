@@ -1,2 +1,11 @@
 # RingBuffer
 C语言环形队列
+
+free_rb:空闲环形队列,一个RINGBUFFER,其上的每一个节点为一个指针,指向了空闲的缓冲区
+busy_rb:数据环形队列,一个RINGBUFFER,其上的每一个节点为一个指针,指向了待处理的数据
+生产者:从free_rb获取空闲缓冲区,填进去数据,最后将其放入busy_rb
+消费者:从busy_rb获取数据,进行处理,最后将缓冲区归还给free_rb
+
+一个RINGBUFFER也可以实现上述功能,但存在限制,比如同一时间只能获取一个节点,当处理完后再获取下一个节点等。
+采用双RINGBUFFER,可以同时从free_rb上获取多个缓冲区,再将填入数据的缓冲区放入busy_rb中(从free_rb上获取的顺序
+和放入busy_rb的顺序不一定一致)
