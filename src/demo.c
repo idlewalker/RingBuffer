@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
 #include "rb_api.h"
 
 #define QUEUE_NUM 125
@@ -10,40 +10,75 @@ typedef struct _queue_node_
     int i,j;
 }queue_node_t;
 
+int over = 0;
+void* producer(void* arg)
+{
+	ring_t *queue_p = (ring_t*)arg;
+	int i;
+
+	for(i=0; i<10000; i++)
+	{
+		qnode_t *qnode = NULL;
+		if(rb_readOutValue(queue_p->fq, qnode_t*, qnode) == 0)
+		{
+			printf("no place left!\n");
+			return NULL;
+		}
+		sprintf(qnode->data, "send data ssssssssssssssssss count = %d\n", i);	
+		while(rb_writeInValue(queue_p->bq, qnode_t*, qnode) == 0)
+		{
+			printf("%s:%d rb_writeInValue failure!\n", __FILE__, __LINE__);
+		}
+		usleep(100);
+	}
+	printf("producer send data over!\n");
+	return NULL;
+}
+
+void* consumer(void *arg)
+{
+	ring_t 	*queue_p  = (ring_t*)arg;
+	
+	while(1)
+	{
+		qnode_t *qnode = NULL;
+		if(rb_readOutValue(queue_p->bq, qnode_t*, qnode) == 0)
+		{
+			printf("no more data could be read!\n");
+			over = 1;
+			return NULL;
+		}
+		printf("consumer get: %s", qnode->data);
+		while(rb_writeInValue(queue_p->fq, qnode_t*, qnode) == 0)
+		{
+			printf("%s:%d rb_writeInValue failure!\n", __FILE__, __LINE__);
+		}
+		usleep(100);
+	}	
+
+	return NULL;
+}
+
 //这个main1已经能够正常运行了
-int main1(void)
+int main(void)
 {
 	ring_t queue;
-	ring_queue_create(&queue, 100);
+	ring_queue_create(&queue, 1000);
 
-	qnode_t *qnode_wb = NULL;
-	if(rb_readOutValue(queue.fq, qnode_t*, qnode_wb) == 0)
+	pthread_t 	tid1;
+	pthread_t 	tid2;
+	pthread_create(&tid1, NULL, producer, (void*)&queue);
+	usleep(100);
+	pthread_create(&tid2, NULL, consumer, (void*)&queue);
+	while(!over)
 	{
-		printf("no place left!\n");
-		exit(-1);
+		usleep(1000);
 	}
-	strcpy(qnode_wb->str1, "test1");	
-	strcpy(qnode_wb->str2, "test2");
-	while(rb_writeInValue(queue.bq, qnode_t*, qnode_wb) == 0)
-	{
-		printf("%s:%d rb_writeInValue failure!\n", __FILE__, __LINE__);
-	}
-
-	qnode_t *qnode_rb = NULL;
-	if(rb_readOutValue(queue.bq, qnode_t*, qnode_rb) == 0)
-	{
-		printf("no data could be read out!\n");
-	}
-	else
-	{
-		printf("ring data is %s:%s\n", qnode_rb->str1, qnode_rb->str2);
-	}
-
 	return 0;
 }
 
 
-int main()
+int main1()
 {
     queue_t q;
     create_queue_buffer(&q, sizeof(queue_node_t), QUEUE_NUM, 0);

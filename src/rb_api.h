@@ -27,8 +27,7 @@ typedef struct _ring_t_
 
 typedef struct _qnode_t
 {
-	char str1[8];
-	char str2[8];
+	char data[256];
 }qnode_t;
 
 int ring_queue_create(ring_t *ring_p, int ring_num);
